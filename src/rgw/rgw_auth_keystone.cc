@@ -31,6 +31,58 @@ namespace rgw {
 namespace auth {
 namespace keystone {
 
+// Helper function to sanitize names and prevent injection attacks
+static std::string sanitize_name(const std::string& name) {
+  std::string result;
+  result.reserve(name.size());
+
+  for (char c : name) {
+    if (std::isalnum(static_cast<unsigned char>(c)) || c == '-' || c == '_' || c == '.') {
+      result.push_back(c);
+    } else if (c == '$' || c == ':' || c == '\0') {
+      // Replace dangerous characters that are delimiters in RGW user ID format
+      result.push_back('_');
+    } else {
+      // Replace other non-alphanumeric characters
+      result.push_back('_');
+    }
+  }
+
+  // Enforce maximum length for RGW user IDs (255 chars total)
+  // Reserve space for delimiters: domain + $ + project + : + user
+  // Allocate ~80 chars per component
+  if (result.size() > 80) {
+    result.resize(80);
+  }
+
+  return result;
+}
+
+// Construct RGW user ID from Keystone token identity
+// Format: {domain}${project}:{user}
+// Example: engineering$team-backend:alice
+static std::string construct_user_id(
+    const rgw::keystone::TokenEnvelope& token) {
+
+  std::string domain = sanitize_name(token.get_domain_name());
+  std::string project = sanitize_name(token.get_project_name());
+  std::string user = sanitize_name(token.get_user_name());
+
+  // Fallback to IDs if names are empty (shouldn't happen in valid tokens)
+  if (domain.empty()) {
+    domain = sanitize_name(token.get_domain_id());
+  }
+  if (project.empty()) {
+    project = sanitize_name(token.get_project_id());
+  }
+  if (user.empty()) {
+    user = sanitize_name(token.get_user_id());
+  }
+
+  // Construct the hierarchical user ID
+  return domain + "$" + project + ":" + user;
+}
+
 bool
 TokenEngine::is_applicable(const std::string& token) const noexcept
 {
@@ -154,10 +206,11 @@ TokenEngine::get_creds_info(const TokenEngine::token_envelope_t& token
   }
 
   return auth_info_t {
-    /* Suggested account name for the authenticated user. */
-    rgw_user(token.get_project_id()),
+    /* Suggested account name for the authenticated user.
+     * Now uses full hierarchical identity: domain$project:user */
+    rgw_user(construct_user_id(token)),
     /* User's display name (aka real name). */
-    token.get_project_name(),
+    token.get_user_name(),
     /* Keystone doesn't support RGW's subuser concept, so we cannot cut down
      * the access rights through the perm_mask. At least at this layer. */
     RGW_PERM_FULL_CONTROL,
@@ -661,10 +714,11 @@ EC2Engine::get_creds_info(const EC2Engine::token_envelope_t& token,
   }
 
   return auth_info_t {
-    /* Suggested account name for the authenticated user. */
-    rgw_user(token.get_project_id()),
+    /* Suggested account name for the authenticated user.
+     * Now uses full hierarchical identity: domain$project:user */
+    rgw_user(construct_user_id(token)),
     /* User's display name (aka real name). */
-    token.get_project_name(),
+    token.get_user_name(),
     /* Keystone doesn't support RGW's subuser concept, so we cannot cut down
      * the access rights through the perm_mask. At least at this layer. */
     RGW_PERM_FULL_CONTROL,

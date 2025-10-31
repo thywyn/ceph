@@ -2860,6 +2860,46 @@ void RGWRateLimitInfo::dump(Formatter *f) const
   f->dump_bool("enabled", enabled);
 }
 
+void RGWUserInfo::KeystoneInfo::encode(bufferlist& bl) const
+{
+  ENCODE_START(1, 1, bl);
+  encode(domain_id, bl);
+  encode(domain_name, bl);
+  encode(project_id, bl);
+  encode(project_name, bl);
+  encode(user_id, bl);
+  encode(user_name, bl);
+  encode(roles, bl);
+  encode(last_synced, bl);
+  ENCODE_FINISH(bl);
+}
+
+void RGWUserInfo::KeystoneInfo::decode(bufferlist::const_iterator& bl)
+{
+  DECODE_START(1, bl);
+  decode(domain_id, bl);
+  decode(domain_name, bl);
+  decode(project_id, bl);
+  decode(project_name, bl);
+  decode(user_id, bl);
+  decode(user_name, bl);
+  decode(roles, bl);
+  decode(last_synced, bl);
+  DECODE_FINISH(bl);
+}
+
+void RGWUserInfo::KeystoneInfo::dump(Formatter *f) const
+{
+  encode_json("domain_id", domain_id, f);
+  encode_json("domain_name", domain_name, f);
+  encode_json("project_id", project_id, f);
+  encode_json("project_name", project_name, f);
+  encode_json("user_id", user_id, f);
+  encode_json("user_name", user_name, f);
+  encode_json("roles", roles, f);
+  encode_json("last_synced", last_synced, f);
+}
+
 void RGWUserInfo::dump(Formatter *f) const
 {
 
@@ -2920,6 +2960,10 @@ void RGWUserInfo::dump(Formatter *f) const
   encode_json("create_date", create_date, f);
   encode_json("tags", tags, f);
   encode_json("group_ids", group_ids, f);
+  encode_json("keystone_managed", keystone_managed, f);
+  if (keystone_managed) {
+    encode_json("keystone_info", keystone_info, f);
+  }
 }
 
 void RGWUserInfo::decode_json(JSONObj *obj)

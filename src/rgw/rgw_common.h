@@ -647,6 +647,24 @@ struct RGWUserInfo
   std::multimap<std::string, std::string> tags;
   boost::container::flat_set<std::string, std::less<>> group_ids;
 
+  // Keystone identity integration fields
+  struct KeystoneInfo {
+    std::string domain_id;
+    std::string domain_name;
+    std::string project_id;
+    std::string project_name;
+    std::string user_id;
+    std::string user_name;
+    std::vector<std::string> roles;
+    ceph::real_time last_synced;
+
+    void encode(bufferlist& bl) const;
+    void decode(bufferlist::const_iterator& bl);
+    void dump(Formatter *f) const;
+  } keystone_info;
+
+  bool keystone_managed = false;  // Flag for Keystone-created users
+
   RGWUserInfo()
     : suspended(0),
       max_buckets(RGW_DEFAULT_MAX_BUCKETS),
@@ -666,7 +684,7 @@ struct RGWUserInfo
   }
 
   void encode(bufferlist& bl) const {
-     ENCODE_START(23, 9, bl);
+     ENCODE_START(24, 9, bl);
      encode((uint64_t)0, bl); // old auid
      std::string access_key;
      std::string secret_key;
@@ -718,10 +736,12 @@ struct RGWUserInfo
      encode(create_date, bl);
      encode(tags, bl);
      encode(group_ids, bl);
+     encode(keystone_managed, bl);
+     encode(keystone_info, bl);
      ENCODE_FINISH(bl);
   }
   void decode(bufferlist::const_iterator& bl) {
-     DECODE_START_LEGACY_COMPAT_LEN_32(23, 9, 9, bl);
+     DECODE_START_LEGACY_COMPAT_LEN_32(24, 9, 9, bl);
      if (struct_v >= 2) {
        uint64_t old_auid;
        decode(old_auid, bl);
@@ -816,6 +836,12 @@ struct RGWUserInfo
       decode(group_ids, bl);
     } else {
       path = "/";
+    }
+    if (struct_v >= 24) {
+      decode(keystone_managed, bl);
+      decode(keystone_info, bl);
+    } else {
+      keystone_managed = false;
     }
     DECODE_FINISH(bl);
   }

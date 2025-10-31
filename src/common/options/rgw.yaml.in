@@ -935,6 +935,26 @@ options:
   services:
   - rgw
   with_legacy: true
+- name: rgw_keystone_identity_mode
+  type: str
+  level: advanced
+  desc: Keystone user identity mapping mode
+  long_desc: |
+    Controls how Keystone users are mapped to RGW users. 'legacy' mode creates
+    one RGW user per Keystone project (all users in a project share one RGW user).
+    'per-user' mode creates distinct RGW users for each Keystone user identity,
+    using the format domain$project:user. The 'per-user' mode enables individual
+    user accountability and audit trails.
+  default: per-user
+  services:
+  - rgw
+  enum_values:
+  - legacy
+  - per-user
+  see_also:
+  - rgw_keystone_url
+  - rgw_keystone_accepted_roles
+  with_legacy: true
 - name: rgw_keystone_implicit_tenants
   type: str
   level: advanced

@@ -205,12 +205,26 @@ TokenEngine::get_creds_info(const TokenEngine::token_envelope_t& token
     }
   }
 
+  /* Determine user ID based on identity mode configuration */
+  std::string user_id;
+  std::string display_name;
+
+  auto identity_mode = cct->_conf->rgw_keystone_identity_mode;
+  if (identity_mode == "per-user") {
+    /* Per-user mode: domain$project:user format */
+    user_id = construct_user_id(token);
+    display_name = token.get_user_name();
+  } else {
+    /* Legacy mode: project-based for backwards compatibility */
+    user_id = token.get_project_id();
+    display_name = token.get_project_name();
+  }
+
   return auth_info_t {
-    /* Suggested account name for the authenticated user.
-     * Now uses full hierarchical identity: domain$project:user */
-    rgw_user(construct_user_id(token)),
+    /* Suggested account name for the authenticated user. */
+    rgw_user(user_id),
     /* User's display name (aka real name). */
-    token.get_user_name(),
+    display_name,
     /* Keystone doesn't support RGW's subuser concept, so we cannot cut down
      * the access rights through the perm_mask. At least at this layer. */
     RGW_PERM_FULL_CONTROL,
@@ -713,19 +727,33 @@ EC2Engine::get_creds_info(const EC2Engine::token_envelope_t& token,
     }
   }
 
+  /* Determine user ID based on identity mode configuration */
+  std::string user_id;
+  std::string display_name;
+
+  auto identity_mode = cct->_conf->rgw_keystone_identity_mode;
+  if (identity_mode == "per-user") {
+    /* Per-user mode: domain$project:user format */
+    user_id = construct_user_id(token);
+    display_name = token.get_user_name();
+  } else {
+    /* Legacy mode: project-based for backwards compatibility */
+    user_id = token.get_project_id();
+    display_name = token.get_project_name();
+  }
+
   return auth_info_t {
-    /* Suggested account name for the authenticated user.
-     * Now uses full hierarchical identity: domain$project:user */
-    rgw_user(construct_user_id(token)),
+    /* Suggested account name for the authenticated user. */
+    rgw_user(user_id),
     /* User's display name (aka real name). */
-    token.get_user_name(),
+    display_name,
     /* Keystone doesn't support RGW's subuser concept, so we cannot cut down
      * the access rights through the perm_mask. At least at this layer. */
     RGW_PERM_FULL_CONTROL,
     level,
     access_key_id,
     rgw::auth::RemoteApplier::AuthInfo::NO_SUBUSER,
-    token.get_user_name(),
+    display_name,
     TYPE_KEYSTONE
   };
 }

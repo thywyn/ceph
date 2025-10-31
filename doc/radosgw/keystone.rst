@@ -141,6 +141,81 @@ configurable ``rgw keystone verify ssl`` to false.
 
 .. _OpenStack Keystone documentation: http://docs.openstack.org/developer/keystone/configuringservices.html#setting-up-projects-users-and-roles
 
+Identity Mapping Mode
+---------------------
+
+By default, RGW creates a distinct user for each Keystone user identity. This enables
+individual user accountability and audit trails. The identity mapping behavior can be
+controlled using the ``rgw keystone identity mode`` configuration option.
+
+Configuration::
+
+   rgw keystone identity mode = {per-user|legacy}
+
+**Per-User Mode** (default):
+
+In per-user mode, each Keystone user gets a distinct RGW user ID based on their full
+identity hierarchy. The user ID format is ``{domain}${project}:{user}``.
+
+For example, if Alice and Bob are both members of the "team-backend" project in the
+"engineering" domain:
+
+- Alice's RGW user ID: ``engineering$team-backend:alice``
+- Bob's RGW user ID: ``engineering$team-backend:bob``
+
+Benefits:
+
+- Individual user accountability for all S3/Swift operations
+- Audit trails show which specific user performed each action
+- Per-user quotas and rate limits
+- Better security through user isolation
+
+Considerations:
+
+- User IDs are longer than in legacy mode (typically 30-80 characters vs 36)
+- Existing buckets remain owned by old project-based users after upgrade
+- New authentications create new per-user RGW users automatically
+
+**Legacy Mode**:
+
+In legacy mode, all users within a Keystone project share a single RGW user identified
+by the project ID. This matches the historical behavior of RGW Keystone integration.
+
+For example, Alice and Bob in the "team-backend" project would both use:
+
+- Shared RGW user ID: ``0e419ea0-8e6c-4f2e-97e6-e9e5c6d5e2f4`` (project UUID)
+
+Benefits:
+
+- Backwards compatible with older deployments
+- Simpler user ID format (UUID)
+- Existing workflows unchanged
+
+Considerations:
+
+- No individual user accountability
+- All users in a project share the same buckets and permissions
+- Cannot distinguish between users in audit logs
+
+**Migration Between Modes**:
+
+Changing the identity mode only affects new authentications. Existing RGW users continue
+to work regardless of the mode setting. This allows for gradual migration:
+
+1. Upgrade RGW with default per-user mode
+2. New authentications create per-user RGW users
+3. Old project-based users coexist with new per-user users
+4. Optionally migrate bucket ownership using ``radosgw-admin bucket link``
+
+To use legacy mode for backwards compatibility::
+
+   [client.radosgw.gateway]
+   rgw keystone identity mode = legacy
+
+.. note:: The per-user identity format sanitizes special characters to prevent
+          injection attacks. Characters like ``$``, ``:``, and null bytes are
+          replaced with underscores. Names longer than 80 characters are truncated.
+
 Cross Project(Tenant) Access
 ----------------------------
 

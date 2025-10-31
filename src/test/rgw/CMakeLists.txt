@@ -262,6 +262,15 @@ add_ceph_unittest(unittest_rgw_string)
 target_include_directories(unittest_rgw_string
   SYSTEM PRIVATE "${CMAKE_SOURCE_DIR}/src/rgw")
 
+# unittest_rgw_auth_keystone
+add_executable(unittest_rgw_auth_keystone test_rgw_auth_keystone.cc)
+add_ceph_unittest(unittest_rgw_auth_keystone)
+target_include_directories(unittest_rgw_auth_keystone
+  SYSTEM PRIVATE "${CMAKE_SOURCE_DIR}/src/rgw")
+target_link_libraries(unittest_rgw_auth_keystone
+  rgw_common
+  ${UNITTEST_LIBS})
+
 # unittest_rgw_dmclock_queue
 add_executable(unittest_rgw_dmclock_scheduler test_rgw_dmclock_scheduler.cc $<TARGET_OBJECTS:unit-main>)
 add_ceph_unittest(unittest_rgw_dmclock_scheduler)

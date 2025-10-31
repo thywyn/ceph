@@ -20,6 +20,14 @@ namespace keystone {
  * Keystone offers three different authentication mechanisms (token, EC2 and
  * regular user/pass). RadosGW actually does support the first two. */
 
+// Helper functions for Keystone identity mapping
+// Sanitize names to prevent injection attacks
+std::string sanitize_name(const std::string& name);
+
+// Construct RGW user ID from Keystone token identity
+// Format: {domain}${project}:{user}
+std::string construct_user_id(const rgw::keystone::TokenEnvelope& token);
+
 class TokenEngine : public rgw::auth::Engine {
   CephContext* const cct;
 

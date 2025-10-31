@@ -32,7 +32,7 @@ namespace auth {
 namespace keystone {
 
 // Helper function to sanitize names and prevent injection attacks
-static std::string sanitize_name(const std::string& name) {
+std::string sanitize_name(const std::string& name) {
   std::string result;
   result.reserve(name.size());
 
@@ -61,7 +61,7 @@ static std::string sanitize_name(const std::string& name) {
 // Construct RGW user ID from Keystone token identity
 // Format: {domain}${project}:{user}
 // Example: engineering$team-backend:alice
-static std::string construct_user_id(
+std::string construct_user_id(
     const rgw::keystone::TokenEnvelope& token) {
 
   std::string domain = sanitize_name(token.get_domain_name());

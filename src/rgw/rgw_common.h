@@ -737,7 +737,7 @@ struct RGWUserInfo
      encode(tags, bl);
      encode(group_ids, bl);
      encode(keystone_managed, bl);
-     encode(keystone_info, bl);
+     keystone_info.encode(bl);
      ENCODE_FINISH(bl);
   }
   void decode(bufferlist::const_iterator& bl) {
@@ -839,7 +839,7 @@ struct RGWUserInfo
     }
     if (struct_v >= 24) {
       decode(keystone_managed, bl);
-      decode(keystone_info, bl);
+      keystone_info.decode(bl);
     } else {
       keystone_managed = false;
     }

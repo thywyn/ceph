@@ -28,9 +28,6 @@ std::string sanitize_name(const std::string& name);
 // Format: {domain}${project}:{user}
 std::string construct_user_id(const rgw::keystone::TokenEnvelope& token);
 
-// Extract role names from Keystone token for audit and capability mapping
-std::vector<std::string> extract_role_names(const rgw::keystone::TokenEnvelope& token);
-
 class TokenEngine : public rgw::auth::Engine {
   CephContext* const cct;
 

@@ -83,23 +83,6 @@ std::string construct_user_id(
   return domain + "$" + project + ":" + user;
 }
 
-// Extract role names from Keystone token for audit and capability mapping
-// Returns a vector of role names that can be stored in KeystoneInfo
-std::vector<std::string> extract_role_names(
-    const rgw::keystone::TokenEnvelope& token) {
-
-  std::vector<std::string> role_names;
-  role_names.reserve(token.roles.size());
-
-  for (const auto& role : token.roles) {
-    if (!role.name.empty()) {
-      role_names.push_back(role.name);
-    }
-  }
-
-  return role_names;
-}
-
 bool
 TokenEngine::is_applicable(const std::string& token) const noexcept
 {

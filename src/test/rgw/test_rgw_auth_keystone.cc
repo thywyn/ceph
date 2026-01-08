@@ -33,9 +33,8 @@ TEST(KeystoneAuthTest, SanitizeNameValid)
 TEST(KeystoneAuthTest, SanitizeNameInjectionPrevention)
 {
   // Dangerous characters should be replaced with underscores
-  EXPECT_EQ("evil_inject_attack", sanitize_name("evil$inject:attack"));
+  EXPECT_EQ("evil_inject_attack", sanitize_name("evil:inject:attack"));
   EXPECT_EQ("null_byte", sanitize_name(std::string("null\0byte", 9)));
-  EXPECT_EQ("domain_project", sanitize_name("domain$project"));
   EXPECT_EQ("project_user", sanitize_name("project:user"));
 }
 
@@ -68,18 +67,14 @@ TEST(KeystoneAuthTest, ConstructUserIdBasic)
 {
   rgw::keystone::TokenEnvelope token;
 
-  // Set up a mock token with domain, project, and user
-  token.user.domain.id = "domain123";
-  token.user.domain.name = "engineering";
-  token.project.domain.id = "domain123";
-  token.project.domain.name = "engineering";
+  // Set up a mock token with project and user
   token.project.id = "project456";
   token.project.name = "team-backend";
   token.user.id = "user789";
   token.user.name = "alice";
 
   std::string user_id = construct_user_id(token);
-  EXPECT_EQ("engineering$team-backend:alice", user_id);
+  EXPECT_EQ("team-backend:alice", user_id);
 }
 
 TEST(KeystoneAuthTest, ConstructUserIdMultipleUsers)
@@ -87,38 +82,30 @@ TEST(KeystoneAuthTest, ConstructUserIdMultipleUsers)
   rgw::keystone::TokenEnvelope token1, token2;
 
   // Same project, different users
-  token1.user.domain.name = "engineering";
-  token1.project.domain.name = "engineering";
   token1.project.name = "team-backend";
   token1.user.name = "alice";
 
-  token2.user.domain.name = "engineering";
-  token2.project.domain.name = "engineering";
   token2.project.name = "team-backend";
   token2.user.name = "bob";
 
-  EXPECT_EQ("engineering$team-backend:alice", construct_user_id(token1));
-  EXPECT_EQ("engineering$team-backend:bob", construct_user_id(token2));
+  EXPECT_EQ("team-backend:alice", construct_user_id(token1));
+  EXPECT_EQ("team-backend:bob", construct_user_id(token2));
   EXPECT_NE(construct_user_id(token1), construct_user_id(token2));
 }
 
-TEST(KeystoneAuthTest, ConstructUserIdDifferentDomains)
+TEST(KeystoneAuthTest, ConstructUserIdDifferentProjects)
 {
   rgw::keystone::TokenEnvelope token1, token2;
 
-  // Different domains
-  token1.user.domain.name = "engineering";
-  token1.project.domain.name = "engineering";
+  // Different projects, same user
   token1.project.name = "project1";
   token1.user.name = "alice";
 
-  token2.user.domain.name = "sales";
-  token2.project.domain.name = "sales";
-  token2.project.name = "project1";
+  token2.project.name = "project2";
   token2.user.name = "alice";
 
-  EXPECT_EQ("engineering$project1:alice", construct_user_id(token1));
-  EXPECT_EQ("sales$project1:alice", construct_user_id(token2));
+  EXPECT_EQ("project1:alice", construct_user_id(token1));
+  EXPECT_EQ("project2:alice", construct_user_id(token2));
   EXPECT_NE(construct_user_id(token1), construct_user_id(token2));
 }
 
@@ -127,22 +114,17 @@ TEST(KeystoneAuthTest, ConstructUserIdSanitization)
   rgw::keystone::TokenEnvelope token;
 
   // Names with special characters should be sanitized
-  token.user.domain.name = "evil$domain";
-  token.project.domain.name = "evil$domain";
   token.project.name = "bad:project";
   token.user.name = "user@host";
 
   std::string user_id = construct_user_id(token);
-  EXPECT_EQ("evil_domain$bad_project:user_host", user_id);
+  EXPECT_EQ("bad_project:user_host", user_id);
 
-  // Ensure no actual delimiters from names
-  EXPECT_NE(std::string::npos, user_id.find('$'));  // Should have one $
+  // Ensure exactly one colon delimiter
   EXPECT_NE(std::string::npos, user_id.find(':'));  // Should have one :
 
-  // Count delimiters (should be exactly 1 of each)
-  size_t dollar_count = std::count(user_id.begin(), user_id.end(), '$');
+  // Count delimiters (should be exactly 1)
   size_t colon_count = std::count(user_id.begin(), user_id.end(), ':');
-  EXPECT_EQ(1u, dollar_count);
   EXPECT_EQ(1u, colon_count);
 }
 
@@ -151,36 +133,28 @@ TEST(KeystoneAuthTest, ConstructUserIdFallbackToIds)
   rgw::keystone::TokenEnvelope token;
 
   // If names are empty, should fall back to IDs
-  token.user.domain.id = "domain-id-123";
-  token.user.domain.name = "";
-  token.project.domain.id = "domain-id-123";
-  token.project.domain.name = "";
   token.project.id = "project-id-456";
   token.project.name = "";
   token.user.id = "user-id-789";
   token.user.name = "";
 
   std::string user_id = construct_user_id(token);
-  EXPECT_EQ("domain-id-123$project-id-456:user-id-789", user_id);
+  EXPECT_EQ("project-id-456:user-id-789", user_id);
 }
 
 TEST(KeystoneAuthTest, ConstructUserIdRealWorldExamples)
 {
   rgw::keystone::TokenEnvelope token;
 
-  // Test case from IMPLEMENTATION_PLAN.md
-  token.user.domain.name = "engineering";
-  token.project.domain.name = "engineering";
+  // Test case from implementation
   token.project.name = "team-backend";
   token.user.name = "alice";
 
-  EXPECT_EQ("engineering$team-backend:alice", construct_user_id(token));
+  EXPECT_EQ("team-backend:alice", construct_user_id(token));
 
   // Another test case
-  token.user.domain.name = "sales";
-  token.project.domain.name = "sales";
   token.project.name = "team-west";
   token.user.name = "dave";
 
-  EXPECT_EQ("sales$team-west:dave", construct_user_id(token));
+  EXPECT_EQ("team-west:dave", construct_user_id(token));
 }

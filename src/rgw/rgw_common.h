@@ -649,8 +649,6 @@ struct RGWUserInfo
 
   // Keystone identity integration fields
   struct KeystoneInfo {
-    std::string domain_id;
-    std::string domain_name;
     std::string project_id;
     std::string project_name;
     std::string user_id;

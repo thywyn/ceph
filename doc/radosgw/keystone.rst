@@ -154,14 +154,13 @@ Configuration::
 
 **Per-User Mode** (default):
 
-In per-user mode, each Keystone user gets a distinct RGW user ID based on their full
-identity hierarchy. The user ID format is ``{domain}${project}:{user}``.
+In per-user mode, each Keystone user gets a distinct RGW user ID based on their
+project and user identity. The user ID format is ``{project}:{user}``.
 
-For example, if Alice and Bob are both members of the "team-backend" project in the
-"engineering" domain:
+For example, if Alice and Bob are both members of the "team-backend" project:
 
-- Alice's RGW user ID: ``engineering$team-backend:alice``
-- Bob's RGW user ID: ``engineering$team-backend:bob``
+- Alice's RGW user ID: ``team-backend:alice``
+- Bob's RGW user ID: ``team-backend:bob``
 
 Benefits:
 
@@ -172,7 +171,7 @@ Benefits:
 
 Considerations:
 
-- User IDs are longer than in legacy mode (typically 30-80 characters vs 36)
+- User IDs are longer than in legacy mode (typically 20-50 characters vs 36)
 - Existing buckets remain owned by old project-based users after upgrade
 - New authentications create new per-user RGW users automatically
 
@@ -213,8 +212,8 @@ To use legacy mode for backwards compatibility::
    rgw keystone identity mode = legacy
 
 .. note:: The per-user identity format sanitizes special characters to prevent
-          injection attacks. Characters like ``$``, ``:``, and null bytes are
-          replaced with underscores. Names longer than 80 characters are truncated.
+          injection attacks. Characters like ``:``, and null bytes are
+          replaced with underscores. Names longer than 120 characters are truncated.
 
 Cross Project(Tenant) Access
 ----------------------------

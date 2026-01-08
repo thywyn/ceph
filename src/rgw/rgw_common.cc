@@ -2860,8 +2860,6 @@ void RGWRateLimitInfo::dump(Formatter *f) const
 void RGWUserInfo::KeystoneInfo::encode(bufferlist& bl) const
 {
   ENCODE_START(1, 1, bl);
-  encode(domain_id, bl);
-  encode(domain_name, bl);
   encode(project_id, bl);
   encode(project_name, bl);
   encode(user_id, bl);
@@ -2874,8 +2872,6 @@ void RGWUserInfo::KeystoneInfo::encode(bufferlist& bl) const
 void RGWUserInfo::KeystoneInfo::decode(bufferlist::const_iterator& bl)
 {
   DECODE_START(1, bl);
-  decode(domain_id, bl);
-  decode(domain_name, bl);
   decode(project_id, bl);
   decode(project_name, bl);
   decode(user_id, bl);
@@ -2887,8 +2883,6 @@ void RGWUserInfo::KeystoneInfo::decode(bufferlist::const_iterator& bl)
 
 void RGWUserInfo::KeystoneInfo::dump(Formatter *f) const
 {
-  encode_json("domain_id", domain_id, f);
-  encode_json("domain_name", domain_name, f);
   encode_json("project_id", project_id, f);
   encode_json("project_name", project_name, f);
   encode_json("user_id", user_id, f);

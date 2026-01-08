@@ -39,7 +39,7 @@ std::string sanitize_name(const std::string& name) {
   for (char c : name) {
     if (std::isalnum(static_cast<unsigned char>(c)) || c == '-' || c == '_' || c == '.') {
       result.push_back(c);
-    } else if (c == '$' || c == ':' || c == '\0') {
+    } else if (c == ':' || c == '\0') {
       // Replace dangerous characters that are delimiters in RGW user ID format
       result.push_back('_');
     } else {
@@ -49,29 +49,25 @@ std::string sanitize_name(const std::string& name) {
   }
 
   // Enforce maximum length for RGW user IDs (255 chars total)
-  // Reserve space for delimiters: domain + $ + project + : + user
-  // Allocate ~80 chars per component
-  if (result.size() > 80) {
-    result.resize(80);
+  // Reserve space for delimiters: project + : + user
+  // Allocate ~120 chars per component
+  if (result.size() > 120) {
+    result.resize(120);
   }
 
   return result;
 }
 
 // Construct RGW user ID from Keystone token identity
-// Format: {domain}${project}:{user}
-// Example: engineering$team-backend:alice
+// Format: {project}:{user}
+// Example: team-backend:alice
 std::string construct_user_id(
     const rgw::keystone::TokenEnvelope& token) {
 
-  std::string domain = sanitize_name(token.get_domain_name());
   std::string project = sanitize_name(token.get_project_name());
   std::string user = sanitize_name(token.get_user_name());
 
   // Fallback to IDs if names are empty (shouldn't happen in valid tokens)
-  if (domain.empty()) {
-    domain = sanitize_name(token.get_domain_id());
-  }
   if (project.empty()) {
     project = sanitize_name(token.get_project_id());
   }
@@ -79,8 +75,8 @@ std::string construct_user_id(
     user = sanitize_name(token.get_user_id());
   }
 
-  // Construct the hierarchical user ID
-  return domain + "$" + project + ":" + user;
+  // Construct the project:user ID
+  return project + ":" + user;
 }
 
 bool
@@ -211,7 +207,7 @@ TokenEngine::get_creds_info(const TokenEngine::token_envelope_t& token
 
   auto identity_mode = cct->_conf->rgw_keystone_identity_mode;
   if (identity_mode == "per-user") {
-    /* Per-user mode: domain$project:user format */
+    /* Per-user mode: project:user format */
     user_id = construct_user_id(token);
     display_name = token.get_user_name();
   } else {
@@ -733,7 +729,7 @@ EC2Engine::get_creds_info(const EC2Engine::token_envelope_t& token,
 
   auto identity_mode = cct->_conf->rgw_keystone_identity_mode;
   if (identity_mode == "per-user") {
-    /* Per-user mode: domain$project:user format */
+    /* Per-user mode: project:user format */
     user_id = construct_user_id(token);
     display_name = token.get_user_name();
   } else {

@@ -39,8 +39,9 @@ std::string sanitize_name(const std::string& name) {
   for (char c : name) {
     if (std::isalnum(static_cast<unsigned char>(c)) || c == '-' || c == '_' || c == '.') {
       result.push_back(c);
-    } else if (c == ':' || c == '\0') {
+    } else if (c == '$' || c == '\0') {
       // Replace dangerous characters that are delimiters in RGW user ID format
+      // $ is used by rgw_user.to_str() as tenant$id delimiter
       result.push_back('_');
     } else {
       // Replace other non-alphanumeric characters
@@ -49,7 +50,7 @@ std::string sanitize_name(const std::string& name) {
   }
 
   // Enforce maximum length for RGW user IDs (255 chars total)
-  // Reserve space for delimiters: project + : + user
+  // Reserve space for delimiter: tenant + $ + id
   // Allocate ~120 chars per component
   if (result.size() > 120) {
     result.resize(120);
@@ -58,25 +59,25 @@ std::string sanitize_name(const std::string& name) {
   return result;
 }
 
-// Construct RGW user ID from Keystone token identity
-// Format: {project}:{user}
-// Example: team-backend:alice
-std::string construct_user_id(
-    const rgw::keystone::TokenEnvelope& token) {
-
-  std::string project = sanitize_name(token.get_project_name());
-  std::string user = sanitize_name(token.get_user_name());
+// Map Keystone identity to RGW user
+// Keystone project -> RGW tenant
+// Keystone user -> RGW user ID
+// Produces tenant$id format via rgw_user.to_str() (e.g., team-backend$alice)
+rgw_user construct_rgw_user(const rgw::keystone::TokenEnvelope& token) {
+  // Prefer names over UUIDs for readability, with sanitization
+  std::string tenant = token.get_project_name();
+  std::string user_id = token.get_user_name();
 
   // Fallback to IDs if names are empty (shouldn't happen in valid tokens)
-  if (project.empty()) {
-    project = sanitize_name(token.get_project_id());
+  if (tenant.empty()) {
+    tenant = token.get_project_id();
   }
-  if (user.empty()) {
-    user = sanitize_name(token.get_user_id());
+  if (user_id.empty()) {
+    user_id = token.get_user_id();
   }
 
-  // Construct the project:user ID
-  return project + ":" + user;
+  // Sanitize to prevent delimiter injection and other attacks
+  return rgw_user(sanitize_name(tenant), sanitize_name(user_id));
 }
 
 bool
@@ -201,24 +202,24 @@ TokenEngine::get_creds_info(const TokenEngine::token_envelope_t& token
     }
   }
 
-  /* Determine user ID based on identity mode configuration */
-  std::string user_id;
+  /* Determine user based on identity mode configuration */
+  rgw_user account_user;
   std::string display_name;
 
   auto identity_mode = cct->_conf->rgw_keystone_identity_mode;
   if (identity_mode == "per-user") {
-    /* Per-user mode: project:user format */
-    user_id = construct_user_id(token);
+    /* Per-user mode: project as tenant, user as id (tenant$id format) */
+    account_user = construct_rgw_user(token);
     display_name = token.get_user_name();
   } else {
     /* Legacy mode: project-based for backwards compatibility */
-    user_id = token.get_project_id();
+    account_user = rgw_user(token.get_project_id());
     display_name = token.get_project_name();
   }
 
   return auth_info_t {
     /* Suggested account name for the authenticated user. */
-    rgw_user(user_id),
+    account_user,
     /* User's display name (aka real name). */
     display_name,
     /* Keystone doesn't support RGW's subuser concept, so we cannot cut down
@@ -723,24 +724,24 @@ EC2Engine::get_creds_info(const EC2Engine::token_envelope_t& token,
     }
   }
 
-  /* Determine user ID based on identity mode configuration */
-  std::string user_id;
+  /* Determine user based on identity mode configuration */
+  rgw_user account_user;
   std::string display_name;
 
   auto identity_mode = cct->_conf->rgw_keystone_identity_mode;
   if (identity_mode == "per-user") {
-    /* Per-user mode: project:user format */
-    user_id = construct_user_id(token);
+    /* Per-user mode: project as tenant, user as id (tenant$id format) */
+    account_user = construct_rgw_user(token);
     display_name = token.get_user_name();
   } else {
     /* Legacy mode: project-based for backwards compatibility */
-    user_id = token.get_project_id();
+    account_user = rgw_user(token.get_project_id());
     display_name = token.get_project_name();
   }
 
   return auth_info_t {
     /* Suggested account name for the authenticated user. */
-    rgw_user(user_id),
+    account_user,
     /* User's display name (aka real name). */
     display_name,
     /* Keystone doesn't support RGW's subuser concept, so we cannot cut down

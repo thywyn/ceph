@@ -154,13 +154,14 @@ Configuration::
 
 **Per-User Mode** (default):
 
-In per-user mode, each Keystone user gets a distinct RGW user ID based on their
-project and user identity. The user ID format is ``{project}:{user}``.
+In per-user mode, each Keystone user gets a distinct RGW user identity with the
+Keystone project mapped to RGW tenant and Keystone user mapped to RGW user ID.
+The format is ``{project}${user}`` (tenant$id).
 
 For example, if Alice and Bob are both members of the "team-backend" project:
 
-- Alice's RGW user ID: ``team-backend:alice``
-- Bob's RGW user ID: ``team-backend:bob``
+- Alice's RGW user: ``team-backend$alice`` (tenant=team-backend, id=alice)
+- Bob's RGW user: ``team-backend$bob`` (tenant=team-backend, id=bob)
 
 Benefits:
 
@@ -212,8 +213,9 @@ To use legacy mode for backwards compatibility::
    rgw keystone identity mode = legacy
 
 .. note:: The per-user identity format sanitizes special characters to prevent
-          injection attacks. Characters like ``:``, and null bytes are
+          injection attacks. Characters like ``$`` and null bytes are
           replaced with underscores. Names longer than 120 characters are truncated.
+          This mapping uses RGW's native tenant/user ID structure.
 
 Cross Project(Tenant) Access
 ----------------------------

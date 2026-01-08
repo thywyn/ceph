@@ -24,9 +24,10 @@ namespace keystone {
 // Sanitize names to prevent injection attacks
 std::string sanitize_name(const std::string& name);
 
-// Construct RGW user ID from Keystone token identity
-// Format: {domain}${project}:{user}
-std::string construct_user_id(const rgw::keystone::TokenEnvelope& token);
+// Construct RGW user from Keystone token identity
+// Maps Keystone project -> RGW tenant, Keystone user -> RGW user ID
+// Produces tenant$id format via rgw_user.to_str()
+rgw_user construct_rgw_user(const rgw::keystone::TokenEnvelope& token);
 
 class TokenEngine : public rgw::auth::Engine {
   CephContext* const cct;
